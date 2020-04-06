@@ -23,13 +23,25 @@ class MCTS:
         for i in range(numberOfMCTSSimulations):
             self.search(canonicalBoard)
 
-        # TODO: implement
+        s = self.game.string_representation(canonicalBoard)
+        counts = [self.Nsa[(s, a)] if (s, a) in self.Nsa else 0 for a in range(self.game.get_action_size())]
+
+        if temp == 0:
+            best_a = np.argmax(counts)
+            probs = [0] * len(counts)
+            probs[best_a] = 1
+            return probs
+
+        counts = [x ** (1. / temp) for x in counts]
+        counts_sum = float(sum(counts))
+        probs = [x / counts_sum for x in counts]
+        return probs
 
     def search(self, canonicalBoard):
-        s = self.game.stringRepresentation(canonicalBoard)
+        s = self.game.string_representation(canonicalBoard)
 
         if s not in self.Es:
-            self.Es[s] = self.game.getGameEnded(canonicalBoard, 1)
+            self.Es[s] = self.game.get_game_ended(canonicalBoard, 1)
 
         if self.Es[s] != 0:
             # terminal node
