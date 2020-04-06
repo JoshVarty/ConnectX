@@ -50,7 +50,7 @@ class Board :
         return False
 
     def execute_move(self, move, color):
-        assert self.pieces[move] == 0:
+        assert self.pieces[move] == 0
         self.pieces[move] = color
 
 
