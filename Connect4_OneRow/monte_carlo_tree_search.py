@@ -47,7 +47,7 @@ class MCTS:
             # terminal node
             return -self.Es[s]
 
-        if s not in self.Ps[s]:
+        if s not in self.Ps:
             # leaf node, EXPAND
             self.Ps[s], v = self.model.predict(canonicalBoard)
             valid_moves = self.game.get_valid_moves(canonicalBoard, 1)
@@ -77,7 +77,7 @@ class MCTS:
 
         a = best_action
         next_s, next_player = self.game.get_next_state(canonicalBoard, 1, a)
-        next_s = self.game.get_canonical_forms(next_s, next_player)
+        next_s = self.game.get_canonical_board(next_s, next_player)
 
         v = self.search(next_s)
 

@@ -1,6 +1,5 @@
 import os
 import numpy as np
-from tqdm import tqdm
 from random import shuffle
 
 import torch
@@ -12,12 +11,10 @@ from Connect4_OneRow.monte_carlo_tree_search import MCTS
 class Trainer:
 
     def __init__(self, game, model, args):
-
         self.game = game
         self.model = model
         self.args = args
         self.mcts = MCTS(self.game, self.model, self.args)
-        self.train_examples = []
 
     def exceute_episode(self):
 
@@ -33,6 +30,8 @@ class Trainer:
 
             temp = int(episode_step < self.args['tempThreshold'])
             action_probs = self.mcts.get_action_prob(canonical_board, temp=temp)
+            train_examples.append((canonical_board, current_player, action_probs, None))
+
             action = np.random.choice(len(action_probs), p=action_probs)
 
             board, current_player = self.game.get_next_state(board, current_player, action)
@@ -42,40 +41,32 @@ class Trainer:
             #TODO: Can we clean this up?
             if r != 0:
                 # [Board, currentPlayer, actionProbabilities, None]
-                return [(x[0], x[2], r * ((-1) ** (x[1] != self.curPlayer))) for x in train_examples]
+                return [(x[0], x[2], r * ((-1) ** (x[1] != current_player))) for x in train_examples]
 
     def learn(self):
 
-        for i in tqdm(range(1, self.args['numIters'] + 1)):
+        for i in range(1, self.args['numIters'] + 1):
 
-            iteration_train_examples = deque([], maxlen=self.args['maxLenOfQueue'])
-
-            for eps in tqdm(range(self.args['numEps'])):
-                self.mcts = MCTS(self.game, self.model, self.args)
-                iteration_train_examples += self.exceute_episode()
-
-            self.train_examples.append(iteration_train_examples)
-
-            if len(iteration_train_examples) > self.args['numItersForTrainExamplesHistory']:
-                print("len(train_examples) =", len(self.train_examples),
-                      " => remove the oldest train examples")
-                self.train_examples.pop(0)
-
-            # TODO: Rename train_examples
-            # shuffle examples before training
             train_examples = []
-            for e in self.train_examples:
-                train_examples.extend(e)
+
+            for eps in range(self.args['numEps']):
+                self.mcts = MCTS(self.game, self.model, self.args)
+                iteration_train_examples = self.exceute_episode()
+                train_examples.extend(iteration_train_examples)
+
+            shuffle(train_examples)
 
             self.train(train_examples)
 
-            self.save_checkpoint(folder=".", filename="best.path")
+            self.save_checkpoint(folder=".", filename="latest.pth")
 
     def train(self, examples):
 
-        optimizer = optim.Adam(self.nnet.parameters())
+        optimizer = optim.Adam(self.model.parameters(), lr=2e-4)
+        pi_losses = []
+        v_losses = []
 
-        for epoch in tqdm(range(self.args['epochs'])):
+        for epoch in range(self.args['epochs']):
             self.model.train()
 
             batch_idx = 0
@@ -98,14 +89,37 @@ class Trainer:
                 l_v = self.loss_v(target_vs, out_v)
                 total_loss = l_pi + l_v
 
+                pi_losses.append(float(l_pi))
+                v_losses.append(float(l_v))
+
                 optimizer.zero_grad()
                 total_loss.backward()
                 optimizer.step()
 
                 batch_idx += 1
 
+            print()
+            print("Policy Loss", np.mean(pi_losses))
+            print("Value Loss", np.mean(v_losses))
+            print("Examples:")
+            print(out_pi[0])
+            print(target_pis[0])
+
+            if pi_losses[-1] < 0.0001:
+                x = 5
+
+
     def loss_pi(self, targets, outputs):
-        return -torch.sum(targets*outputs)/targets.size()[0]
+        # loss_fn = torch.nn.KLDivLoss()
+        # return loss_fn(torch.log(outputs), targets)
+
+        # Try cross entropy loss
+        loss = -(targets * torch.log(outputs) + (1-targets) * torch.log(1 - outputs)).mean()
+        return loss
+
+
+
+        #return -torch.sum(targets*outputs)/targets.size()[0]
 
     def loss_v(self, targets, outputs):
         return torch.sum((targets-outputs.view(-1))**2)/targets.size()[0]

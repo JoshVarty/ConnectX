@@ -1,22 +1,26 @@
+import numpy as np
 
-
-class Board :
+class Board:
     """
     Board setup for a very, very simple game of ConnectX in which we have:
         rows: 1
-        columns: 5
-        winNumber: 3
+        columns: 4
+        winNumber: 2
     """
 
-    def __init__(self):
+    def __init__(self, board=None):
         """
         Sets up initial board configuration
         """
-        self.columns = 5
-        self.win = 3
-        self.pieces = [0, 0, 0, 0, 0]
+        self.columns = 4
+        self.win = 2
 
-    def __getitem(self, index):
+        if board is None:
+            self.pieces = [0, 0, 0, 0]
+        else:
+            self.pieces = np.copy(board)
+
+    def __getitem__(self, index):
         return self.pieces[index]
 
     def get_legal_moves(self, color):
@@ -32,7 +36,7 @@ class Board :
 
         for index in range(self.columns):
             if self[index] == 0:
-                return
+                return True
 
         return False
 

@@ -62,7 +62,7 @@ class Connect3OneRowGame:
         # Draws have very little (but positive reward)
         return 1e-4
 
-    def get_canonical_form(self, board, player):
+    def get_canonical_board(self, board, player):
         return player * board
 
     def string_representation(self, board):

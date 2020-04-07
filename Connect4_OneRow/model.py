@@ -6,20 +6,22 @@ import torch.nn.functional as F
 
 class Connect4_OneRow_Model(nn.Module):
 
-    def __init__(self, game, device):
+    def __init__(self, board_size, action_size, device):
 
         super(Connect4_OneRow_Model, self).__init__()
 
         self.device = device
-        self.size = game.get_board_size()
-        self.action_size = game.get_action_size()
+        self.size = board_size
+        self.action_size = action_size
 
-        self.fc1 = nn.Linear(in_features=self.size, out_features=16)
-        self.fc2 = nn.Linear(in_features=16, out_features=16)
+        self.fc1 = nn.Linear(in_features=self.size, out_features=64)
+        self.fc2 = nn.Linear(in_features=64, out_features=64)
 
         # Two heads on our network
-        self.action_head = nn.Linear(in_features=16, out_features=self.action_size)
-        self.value_head = nn.Linear(in_features=16, out_features=1)
+        self.action_head = nn.Linear(in_features=64, out_features=self.action_size)
+        self.value_head = nn.Linear(in_features=64, out_features=1)
+
+        self.to(device)
 
 
     def forward(self, x):
@@ -29,15 +31,15 @@ class Connect4_OneRow_Model(nn.Module):
         action_logits = self.action_head(x)
         value_logit = self.value_head(x)
 
-        return F.log_softmax(action_logits, dim=1), F.tanh(value_logit)
+        return F.softmax(action_logits, dim=1), torch.tanh(value_logit)
 
 
     def predict(self, board):
-        board = torch.FloatTensor(board.astype(np.float32))
+        board = torch.FloatTensor(board.astype(np.float32)).to(self.device)
         board.to(self.device)
         board = board.view(1, self.size)
         self.eval()
         with torch.no_grad():
             pi, v = self.forward(board)
 
-        return torch.exp(pi).data.cpu().numpy()[0], v.data.cpu().numpy()[0]
+        return pi.data.cpu().numpy()[0], v.data.cpu().numpy()[0]
