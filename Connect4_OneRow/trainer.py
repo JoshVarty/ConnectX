@@ -16,6 +16,8 @@ class Trainer:
         self.args = args
         self.mcts = MCTS(self.game, self.model, self.args)
 
+        self.all = []
+
     def exceute_episode(self):
 
         train_examples = []
@@ -54,11 +56,15 @@ class Trainer:
                 iteration_train_examples = self.exceute_episode()
                 train_examples.extend(iteration_train_examples)
 
+                self.all.extend(iteration_train_examples)
+
+
             shuffle(train_examples)
 
             self.train(train_examples)
 
             self.save_checkpoint(folder=".", filename="latest.pth")
+
 
     def train(self, examples):
 
@@ -105,24 +111,20 @@ class Trainer:
             print(out_pi[0])
             print(target_pis[0])
 
-            if pi_losses[-1] < 0.0001:
-                x = 5
-
 
     def loss_pi(self, targets, outputs):
         # loss_fn = torch.nn.KLDivLoss()
         # return loss_fn(torch.log(outputs), targets)
-
         # Try cross entropy loss
-        loss = -(targets * torch.log(outputs) + (1-targets) * torch.log(1 - outputs)).mean()
-        return loss
-
-
-
-        #return -torch.sum(targets*outputs)/targets.size()[0]
+        loss = -(targets * torch.log(outputs)).sum(dim=1)
+        return loss.mean()
 
     def loss_v(self, targets, outputs):
-        return torch.sum((targets-outputs.view(-1))**2)/targets.size()[0]
+
+        x = torch.FloatTensor([0.01]).cuda()
+        loss = torch.sum((targets-outputs.view(-1))**2)/targets.size()[0]
+        loss = torch.max(x, loss)
+        return loss
 
 
     def save_checkpoint(self, folder, filename):

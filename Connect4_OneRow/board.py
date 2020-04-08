@@ -57,4 +57,17 @@ class Board:
         assert self.pieces[move] == 0
         self.pieces[move] = color
 
+    def tostring(self):
+        result = ""
+        result += "["
+
+        for position in self.pieces:
+            result += str(position)
+            result += ","
+
+        result = result[:-1]
+        result += "]"
+
+        return result
+
 
