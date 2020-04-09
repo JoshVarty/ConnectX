@@ -7,7 +7,6 @@ from pathlib import Path
 from networkx import DiGraph
 from networkx.drawing.nx_agraph import graphviz_layout
 
-from Connect4_OneRow.board import Board
 from Connect4_OneRow.game import Connect3OneRowGame
 from Connect4_OneRow.model import Connect4_OneRow_Model
 from Connect4_OneRow.trainer import Trainer
@@ -19,41 +18,42 @@ def display_graph(trainer, model):
 
     graph = DiGraph()
     color_map = []
+    game = Connect3OneRowGame()
 
     def generateStates(board=None, player=1, prefix=1):
         if board is None:
-            board = Board()
+            board = game.get_init_board()
 
-        current_state = board.tostring()
+        current_state = game.string_representation(board)
 
         if current_state in lookup:
             state_visit_count = current_state
 
         if not graph.has_node(current_state):
-            if board.is_win(1):
+            if game.is_win(board, 1):
                 color_map.append("green")
                 graph.add_node(current_state)
                 return
-            elif board.is_win(-1):
+            elif game.is_win(board, -1):
                 color_map.append("red")
                 graph.add_node(current_state)
                 return
-            elif not board.has_legal_moves():
+            elif not game.has_legal_moves(board):
                 color_map.append("yellow")
                 graph.add_node(current_state)
             else:
                 color_map.append("gray")
                 graph.add_node(current_state)
 
-        if board.is_win(player) or board.is_win(-player):
+        if game.is_win(board, player) or game.is_win(board, -player):
             return
 
-        valid_moves = board.get_legal_moves(player)
+        valid_moves = game.get_legal_moves(board)
 
         for move in valid_moves:
-            next_board = Board(board.pieces)
-            next_board.pieces[move] = player
-            next_state = next_board.tostring()
+            next_board = np.copy(board)
+            next_board[move] = player
+            next_state = game.string_representation(next_board)
 
             generateStates(next_board, player * -1)
 
@@ -61,11 +61,11 @@ def display_graph(trainer, model):
 
     # Now that we've got a trained model, let's visualize the tree
     lookup = {}
-    for pieces, policy, value in trainer.all:
+    for board, policy, value in trainer.all:
 
-        if np.count_nonzero(pieces) % 2 == 0:
-            board = Board(pieces)
-            state_string = board.tostring()
+        if np.count_nonzero(board) % 2 == 0:
+            b = np.copy(board)
+            state_string = game.string_representation(board)
 
             if state_string not in lookup:
                 lookup[state_string] = 0
@@ -73,8 +73,8 @@ def display_graph(trainer, model):
             lookup[state_string] = lookup[state_string] + 1
 
         else:
-            board = Board(pieces * -1)
-            state_string = board.tostring()
+            board = np.copy(board) * -1
+            state_string = game.string_representation(board)
 
             if state_string not in lookup:
                 lookup[state_string] = 0
@@ -134,7 +134,7 @@ args = {
     'tempThreshold': 15,        # Number of iterations before we switch temp from 1 to 0
     'numItersForTrainExamplesHistory': 20,
     'updateThreshold': 0.6,     # Percentage wins required against previous model required in order to update model
-    'epochs': 5,               # Number of epochs of training per iteration
+    'epochs': 10,               # Number of epochs of training per iteration
 }
 
 game = Connect3OneRowGame()

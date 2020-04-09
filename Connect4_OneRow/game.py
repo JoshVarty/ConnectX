@@ -1,5 +1,4 @@
 import numpy as np
-from Connect4_OneRow.board import Board
 
 class Connect3OneRowGame:
     """
@@ -11,10 +10,11 @@ class Connect3OneRowGame:
 
     def __init__(self):
         self.columns = 4
+        self.win = 2
 
     def get_init_board(self):
-        b = Board()
-        return np.array(b.pieces)
+        b = np.zeros((self.columns,), dtype=np.int)
+        return b
 
     def get_board_size(self):
         return self.columns
@@ -22,21 +22,34 @@ class Connect3OneRowGame:
     def get_action_size(self):
         return self.columns
 
-    def get_next_state(self, pieces, player, action):
-        b = Board(pieces)
-        move = (int(action))
-        b.execute_move(move, player)
+    def get_next_state(self, board, player, action):
+        b = np.copy(board)
+        b[action] = player
 
         # Return the new game, but
         # change the perspective of the game with negative
-        return (b.pieces, -player)
+        return (b, -player)
 
-    def get_valid_moves(self, pieces, player):
+    def has_legal_moves(self, board):
+        for index in range(self.columns):
+            if board[index] == 0:
+                return True
+        return False
+
+    def get_legal_moves(self, board):
+        moves = set()
+        for index in range(self.columns):
+            if board[index] == 0:
+                moves.add(index)
+
+        return list(moves)
+
+    def get_valid_moves(self, board, player):
         # All moves are invalid by default
         valid_moves = [0] * self.get_action_size()
-        b = Board(pieces)
+        b = np.copy(board)
 
-        legalMoves = b.get_legal_moves(player)
+        legalMoves = self.get_legal_moves(b)
         if len(legalMoves) == 0:
             # No valid moves
             return valid_moves
@@ -47,24 +60,49 @@ class Connect3OneRowGame:
 
         return valid_moves
 
-    def get_game_ended(self, pieces, player):
+    def is_win(self, board, player):
+        count = 0
+        for index in range(self.columns):
+            if board[index] == player:
+                count = count + 1
+            else:
+                count = 0
+
+            if count == self.win:
+                return True
+
+        return False
+
+    def get_game_ended(self, board, player):
         # return 0 if not ended, 1 if player 1 wins, -1 if player 1 lost
 
-        b = Board(pieces)
-
-        if b.is_win(player):
+        if self.is_win(board, player):
             return 1
-        if b.is_win(-player):
+        if self.is_win(board, -player):
             return -1
-        if b.has_legal_moves():
+        if self.has_legal_moves(board):
             return 0
 
         # Draws have very little (but positive reward)
         return 1e-4
 
-    def get_canonical_board(self, pieces, player):
-        return player * pieces
+    def get_canonical_board(self, board, player):
+        return player * board
 
-    def string_representation(self, pieces):
-        b = Board(pieces)
-        return b.tostring()
+    def string_representation(self, board):
+
+        result = ""
+        result += "["
+
+        for position in board:
+            result += str(position)
+            result += ","
+
+        result = result[:-1]
+        result += "]"
+
+        return result
+
+
+
+
