@@ -16,7 +16,7 @@ class Board:
         self.win = 2
 
         if board is None:
-            self.pieces = [0, 0, 0, 0]
+            self.pieces = np.array([0, 0, 0, 0])
         else:
             self.pieces = np.copy(board)
 
