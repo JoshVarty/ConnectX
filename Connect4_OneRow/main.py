@@ -146,3 +146,4 @@ model = Connect4_OneRow_Model(board_size, action_size, device)
 trainer = Trainer(game, model, args)
 trainer.learn()
 
+display_graph(trainer, model)
