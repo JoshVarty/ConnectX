@@ -133,7 +133,6 @@ args = {
     'numEps': 100,              # Number of full games (episodes) to run during each iteration
     'tempThreshold': 15,        # Number of iterations before we switch temp from 1 to 0
     'numItersForTrainExamplesHistory': 20,
-    'updateThreshold': 0.6,     # Percentage wins required against previous model required in order to update model
     'epochs': 10,               # Number of epochs of training per iteration
 }
 
