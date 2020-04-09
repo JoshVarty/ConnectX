@@ -1,6 +1,6 @@
 import numpy as np
 
-class Connect3OneRowGame:
+class Connect2Game:
     """
     A very, very simple game of ConnectX in which we have:
         rows: 1

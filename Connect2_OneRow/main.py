@@ -7,8 +7,8 @@ from pathlib import Path
 from networkx import DiGraph
 from networkx.drawing.nx_agraph import graphviz_layout
 
-from Connect4_OneRow.game import Connect3OneRowGame
-from Connect4_OneRow.model import Connect4_OneRow_Model
+from Connect4_OneRow.game import Connect2Game
+from Connect4_OneRow.model import Connect2Model
 from Connect4_OneRow.trainer import Trainer
 from Connect4_OneRow.monte_carlo_tree_search import MCTS
 
@@ -18,7 +18,7 @@ def display_graph(trainer, model):
 
     graph = DiGraph()
     color_map = []
-    game = Connect3OneRowGame()
+    game = Connect2Game()
 
     def generateStates(board=None, player=1, prefix=1):
         if board is None:
@@ -136,11 +136,11 @@ args = {
     'epochs': 10,               # Number of epochs of training per iteration
 }
 
-game = Connect3OneRowGame()
+game = Connect2Game()
 board_size = game.get_board_size()
 action_size = game.get_action_size()
 
-model = Connect4_OneRow_Model(board_size, action_size, device)
+model = Connect2Model(board_size, action_size, device)
 
 trainer = Trainer(game, model, args)
 trainer.learn()

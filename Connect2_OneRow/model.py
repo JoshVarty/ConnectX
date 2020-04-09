@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class Connect4_OneRow_Model(nn.Module):
+class Connect2Model(nn.Module):
 
     def __init__(self, board_size, action_size, device):
 
