@@ -22,8 +22,8 @@ class Connect3OneRowGame:
     def get_action_size(self):
         return self.columns
 
-    def get_next_state(self, board, player, action):
-        b = Board(board)
+    def get_next_state(self, pieces, player, action):
+        b = Board(pieces)
         move = (int(action))
         b.execute_move(move, player)
 
@@ -31,10 +31,10 @@ class Connect3OneRowGame:
         # change the perspective of the game with negative
         return (b.pieces, -player)
 
-    def get_valid_moves(self, board, player):
+    def get_valid_moves(self, pieces, player):
         # All moves are invalid by default
         valid_moves = [0] * self.get_action_size()
-        b = Board(board)
+        b = Board(pieces)
 
         legalMoves = b.get_legal_moves(player)
         if len(legalMoves) == 0:
@@ -47,10 +47,10 @@ class Connect3OneRowGame:
 
         return valid_moves
 
-    def get_game_ended(self, board, player):
+    def get_game_ended(self, pieces, player):
         # return 0 if not ended, 1 if player 1 wins, -1 if player 1 lost
 
-        b = Board(board)
+        b = Board(pieces)
 
         if b.is_win(player):
             return 1
@@ -62,11 +62,9 @@ class Connect3OneRowGame:
         # Draws have very little (but positive reward)
         return 1e-4
 
-    def get_canonical_board(self, board, player):
-        return player * board
+    def get_canonical_board(self, pieces, player):
+        return player * pieces
 
-    def string_representation(self, board):
-        return board.tostring()
-
-
-
+    def string_representation(self, pieces):
+        b = Board(pieces)
+        return b.tostring()
