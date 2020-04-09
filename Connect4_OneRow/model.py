@@ -36,7 +36,6 @@ class Connect4_OneRow_Model(nn.Module):
 
     def predict(self, board):
         board = torch.FloatTensor(board.astype(np.float32)).to(self.device)
-        board.to(self.device)
         board = board.view(1, self.size)
         self.eval()
         with torch.no_grad():
