@@ -18,7 +18,7 @@ class MCTS:
         self.Es = {}        # stores whether the game is ended at given state
         self.Vs = {}        # stores valid moves for a given state
 
-    def get_action_prob(self, canonicalBoard, numberOfMCTSSimulations=10, temp=1):
+    def get_action_prob(self, canonicalBoard, numberOfMCTSSimulations=15, temp=1):
 
         for i in range(numberOfMCTSSimulations):
             self.search(canonicalBoard)
@@ -35,7 +35,16 @@ class MCTS:
         counts = [x ** (1. / temp) for x in counts]
         counts_sum = float(sum(counts))
         probs = [x / counts_sum for x in counts]
-        return probs
+
+        # From the paper: We want to explore many nodes from the root node so we add some
+        # noise to the probabilities we've collected
+        if np.count_nonzero(canonicalBoard) == 0:
+            probs = np.array(probs)
+            epsilon = 0.25
+            alpha = np.ones_like(probs) * 0.03
+            probs = (1 - epsilon) * np.array(probs) + epsilon * np.random.dirichlet(alpha=alpha)
+
+        return list(probs)
 
     def search(self, canonicalBoard):
         s = self.game.string_representation(canonicalBoard)
