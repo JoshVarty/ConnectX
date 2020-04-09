@@ -8,7 +8,7 @@ class Connect2Model(nn.Module):
 
     def __init__(self, board_size, action_size, device):
 
-        super(Connect4_OneRow_Model, self).__init__()
+        super(Connect2Model, self).__init__()
 
         self.device = device
         self.size = board_size

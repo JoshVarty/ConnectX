@@ -6,7 +6,7 @@ import torch
 import torch.optim as optim
 
 from collections import deque
-from Connect4_OneRow.monte_carlo_tree_search import MCTS
+from Connect2_OneRow.monte_carlo_tree_search import MCTS
 
 class Trainer:
 

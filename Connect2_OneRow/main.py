@@ -7,10 +7,10 @@ from pathlib import Path
 from networkx import DiGraph
 from networkx.drawing.nx_agraph import graphviz_layout
 
-from Connect4_OneRow.game import Connect2Game
-from Connect4_OneRow.model import Connect2Model
-from Connect4_OneRow.trainer import Trainer
-from Connect4_OneRow.monte_carlo_tree_search import MCTS
+from Connect2_OneRow.game import Connect2Game
+from Connect2_OneRow.model import Connect2Model
+from Connect2_OneRow.trainer import Trainer
+from Connect2_OneRow.monte_carlo_tree_search import MCTS
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
