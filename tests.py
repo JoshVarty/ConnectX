@@ -1,5 +1,5 @@
 import unittest
-from Connect2_OneRow.monte_carlo_tree_search import Node, MCTS
+from Connect2_OneRow.monte_carlo_tree_search import Node, MCTS, ucb_score
 
 class NodeTests(unittest.TestCase):
 
@@ -62,11 +62,113 @@ class NodeTests(unittest.TestCase):
         self.assertEqual(node.children[2].prior, 0.50)
         self.assertEqual(node.children[3].prior, 0.10)
 
+    def test_ucb_score_no_children_visited(self):
+        node = Node(0.5)
+        node.visit_count = 1
 
-class MCTSTests(unittest.TestCase):
+        state = [0, 0, 0, 0]
+        action_probs = [0.25, 0.15, 0.5, 0.1]
+        to_play = 1
 
-    def test_ucb_score(self):
-        pass
+        node.expand(state, to_play, action_probs)
+        node.children[0].visit_count = 0
+        node.children[1].visit_count = 0
+        node.children[2].visit_count = 0
+        node.children[3].visit_count = 0
+
+        score_0 = ucb_score(node, node.children[0])
+        score_1 = ucb_score(node, node.children[1])
+        score_2 = ucb_score(node, node.children[2])
+        score_3 = ucb_score(node, node.children[3])
+
+        # With no visits, UCB score is just the priors
+        self.assertEqual(score_0, node.children[0].prior)
+        self.assertEqual(score_1, node.children[1].prior)
+        self.assertEqual(score_2, node.children[2].prior)
+        self.assertEqual(score_3, node.children[3].prior)
+
+    def test_ucb_score_one_child_visited(self):
+        node = Node(0.5)
+        node.visit_count = 1
+
+        state = [0, 0, 0, 0]
+        action_probs = [0.25, 0.15, 0.5, 0.1]
+        to_play = 1
+
+        node.expand(state, to_play, action_probs)
+        node.children[0].visit_count = 0
+        node.children[1].visit_count = 0
+        node.children[2].visit_count = 1
+        node.children[3].visit_count = 0
+
+        score_0 = ucb_score(node, node.children[0])
+        score_1 = ucb_score(node, node.children[1])
+        score_2 = ucb_score(node, node.children[2])
+        score_3 = ucb_score(node, node.children[3])
+
+        # With no visits, UCB score is just the priors
+        self.assertEqual(score_0, node.children[0].prior)
+        self.assertEqual(score_1, node.children[1].prior)
+        # If we visit one child once, its score is halved
+        self.assertEqual(score_2, node.children[2].prior / 2)
+        self.assertEqual(score_3, node.children[3].prior)
+
+        action, child = node.select_child()
+
+        # Since there is a tie, max() chooses the largest 'action' index
+        # Not necessarily useful but it's a deterministic tie breaker
+        self.assertEqual(action, 2)
+
+    def test_ucb_score_one_child_visited_twice(self):
+        node = Node(0.5)
+        node.visit_count = 2
+
+        state = [0, 0, 0, 0]
+        action_probs = [0.25, 0.15, 0.5, 0.1]
+        to_play = 1
+
+        node.expand(state, to_play, action_probs)
+        node.children[0].visit_count = 0
+        node.children[1].visit_count = 0
+        node.children[2].visit_count = 2
+        node.children[3].visit_count = 0
+
+        score_0 = ucb_score(node, node.children[0])
+        score_1 = ucb_score(node, node.children[1])
+        score_2 = ucb_score(node, node.children[2])
+        score_3 = ucb_score(node, node.children[3])
+
+        action, child = node.select_child()
+
+        # Now that we've visited the second action twice, we should
+        # end up trying the first action
+        self.assertEqual(action, 0)
+
+    def test_ucb_score_no_children_visited(self):
+        node = Node(0.5)
+        node.visit_count = 1
+
+        state = [0, 0, 0, 0]
+        action_probs = [0.25, 0.15, 0.5, 0.1]
+        to_play = 1
+
+        node.expand(state, to_play, action_probs)
+        node.children[0].visit_count = 0
+        node.children[1].visit_count = 0
+        node.children[2].visit_count = 1
+        node.children[3].visit_count = 0
+
+        score_0 = ucb_score(node, node.children[0])
+        score_1 = ucb_score(node, node.children[1])
+        score_2 = ucb_score(node, node.children[2])
+        score_3 = ucb_score(node, node.children[3])
+
+        # With no visits, UCB score is just the priors
+        self.assertEqual(score_0, node.children[0].prior)
+        self.assertEqual(score_1, node.children[1].prior)
+        # If we visit one child once, its score is halved
+        self.assertEqual(score_2, node.children[2].prior / 2)
+        self.assertEqual(score_3, node.children[3].prior)
 
 if __name__ == '__main__':
     unittest.main()

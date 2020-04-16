@@ -3,6 +3,16 @@ import math
 import numpy as np
 
 
+def ucb_score(parent, child):
+    prior_score = child.prior * math.sqrt(parent.visit_count) / (child.visit_count + 1)
+    if child.visit_count > 0:
+        value_score = child.value()
+    else:
+        value_score = 0
+
+    return value_score + prior_score
+
+
 class Node:
     def __init__(self, prior):
         self.visit_count = 0
@@ -49,12 +59,22 @@ class Node:
 
         return action
 
+    def select_child(self):
+        """
+        Select the child with the highest UCB score.
+        """
+        _, action, child = max(
+            (ucb_score(self, child), action, child)
+            for action, child in self.children.items()
+        )
+        return action, child
+
+
     def expand(self, state, to_play, action_probs):
         self.to_play = to_play
         self.state = state
         for a, prob in enumerate(action_probs):
             self.children[a] = Node(prob)
-
 
 
 class MCTS:
@@ -93,7 +113,7 @@ class MCTS:
 
             # SELECT
             while node.expanded():
-                action, node = self.select_child(node)
+                action, node = node.select_child()
                 search_path.append(node)
 
                 # Players play turn by turn
@@ -115,24 +135,6 @@ class MCTS:
 
         return root
 
-    def select_child(self, node):
-        """
-        Select the child with the highest UCB score.
-        """
-        _, action, child = max(
-            (self.ucb_score(node, child), action, child)
-            for action, child in node.children.items()
-        )
-        return action, child
-
-    def ucb_score(self, parent, child):
-        prior_score = child.prior * math.sqrt(parent.visit_count) / (child.visit_count + 1)
-        if child.visit_count > 0:
-            value_score = child.value()
-        else:
-            value_score = 0
-
-        return value_score + prior_score
 
 
     def backpropagate(self, search_path, value, to_play):
@@ -143,14 +145,6 @@ class MCTS:
         for node in reversed(search_path):
             node.value_sum += value if node.to_play == to_play else -value
             node.visit_count += 1
-
-
-
-
-
-
-
-
 
 
 
