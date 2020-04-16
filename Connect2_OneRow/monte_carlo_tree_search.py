@@ -1,5 +1,60 @@
+import torch
 import math
 import numpy as np
+
+
+class Node:
+    def __init__(self, prior):
+        self.visit_count = 0
+        self.to_play = -1
+        self.prior = prior
+        self.value_sum = 0
+        self.children = {}
+        self.state = None
+
+    def expanded(self):
+        return len(self.children) > 0
+
+    def value(self):
+        if self.visit_count == 0:
+            return 0
+
+        return self.value_sum / self.visit_count
+
+    def add_exploration_noise(self, dirichlet_alpha, exploration_fraction):
+        """
+        At the start of each search, we add dirichlet noise to the prior of the root to
+        encourage the search to explore new actions.
+        """
+        actions = list(self.children.keys())
+        noise = np.random.dirichlet([dirichlet_alpha] * len(actions))
+        frac = exploration_fraction
+        for a, n in zip(actions, noise):
+            self.children[a].prior = self.children[a].prior * (1 - frac) + n * frac
+
+    def select_action(self, temperature):
+        visit_counts = np.array(
+            [child.visit_count for child in self.children.values()]
+        )
+        actions = [action for action in self.children.keys()]
+        if temperature == 0:
+            action = actions[np.argmax(visit_counts)]
+        elif temperature == float("inf"):
+            action = np.random.choice(actions)
+        else:
+            # See paper appendix Data Generation
+            visit_count_distribution = visit_counts ** (1 / temperature)
+            visit_count_distribution = visit_count_distribution / sum(visit_count_distribution)
+            action = np.random.choice(actions, p=visit_count_distribution)
+
+        return action
+
+    def expand(self, state, to_play, action_probs):
+        self.to_play = to_play
+        self.state = state
+        for a, prob in enumerate(action_probs):
+            self.children[a] = Node(prob)
+
 
 
 class MCTS:
@@ -8,15 +63,96 @@ class MCTS:
         self.game = game
         self.model = model
         self.args = args
-        self.EPS = 1e-8
 
-        self.Qsa = {}       # lookup from (state, action) -> Q value
-        self.Nsa = {}       # lookup from (state, action) -> number of times visited
-        self.Ns = {}        # lookup from (state) -> number of times visited
-        self.Ps = {}        # stores policy decisions returned by neural network
 
-        self.Es = {}        # stores whether the game is ended at given state
-        self.Vs = {}        # stores valid moves for a given state
+    def run(self, model, state, to_play, add_exploration_noise):
+
+        root = Node(0)
+
+        # The root is a special case. We expand it manually here
+        # because we need to add exploration noise to the root
+        # https://www.gwern.net/docs/rl/2017-silver.pdf
+        # See: Self-Play under Methods
+        # EXPAND
+        action_probs, value = model.predict(state)
+        valid_moves = self.game.get_valid_moves(state, 1)
+        action_probs = action_probs * valid_moves  # mask invalid moves
+        action_probs /= np.sum(action_probs)
+
+        # EXPAND root
+        root.expand(state, to_play, action_probs)
+
+        if add_exploration_noise:
+            root.add_exploration_noise(dirichlet_alpha=0.3, exploration_fraction=0.25)
+
+        for _ in range(self.args['num_simulations']):
+
+            virtual_to_play = to_play
+            node = root
+            search_path = [node]
+
+            # SELECT
+            while node.expanded():
+                action, node = self.select_child(node)
+                search_path.append(node)
+
+                # Players play turn by turn
+                virtual_to_play = virtual_to_play * -1
+
+            parent = search_path[-2]
+            state = parent.state
+            # Now we're at a leaf node and we would like to expand
+            next_state, _ = self.game.get_next_state(state, virtual_to_play, action)
+
+            # EXPAND
+            action_probs, value = model.predict(next_state)
+            valid_moves = self.game.get_valid_moves(next_state, 1)
+            action_probs = action_probs * valid_moves  # mask invalid moves
+            action_probs /= np.sum(action_probs)
+            node.expand(next_state, virtual_to_play, action_probs)
+
+            self.backpropagate(search_path, value, virtual_to_play)
+
+        return root
+
+    def select_child(self, node):
+        """
+        Select the child with the highest UCB score.
+        """
+        _, action, child = max(
+            (self.ucb_score(node, child), action, child)
+            for action, child in node.children.items()
+        )
+        return action, child
+
+    def ucb_score(self, parent, child):
+        prior_score = child.prior * math.sqrt(parent.visit_count) / (child.visit_count + 1)
+        if child.visit_count > 0:
+            value_score = child.value()
+        else:
+            value_score = 0
+
+        return value_score + prior_score
+
+
+    def backpropagate(self, search_path, value, to_play):
+        """
+        At the end of a simulation, we propagate the evaluation all the way up the tree
+        to the root.
+        """
+        for node in reversed(search_path):
+            node.value_sum += value if node.to_play == to_play else -value
+            node.visit_count += 1
+
+
+
+
+
+
+
+
+
+
 
     def get_action_prob(self, canonicalBoard, numberOfMCTSSimulations=15, temp=1):
 
@@ -75,7 +211,7 @@ class MCTS:
         for a in range(self.game.get_action_size()):
             if valid_moves[a]:
                 if (s, a) in self.Qsa:
-                    u = self.Qsa[(s,a)] + self.Ps[s][a] * math.sqrt(self.Ns[s]) / (1 + self.Nsa[(s, a)])
+                    u = self.Qsa[(s, a)] + self.Ps[s][a] * math.sqrt(self.Ns[s]) / (1 + self.Nsa[(s, a)])
                 else:
                     # We've never taken this action in this state before
                     u = self.Ps[s][a] * math.sqrt(self.Ns[s] + self.EPS)

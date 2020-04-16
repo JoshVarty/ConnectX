@@ -31,19 +31,24 @@ class Trainer:
             canonical_board = self.game.get_canonical_board(board, current_player)
 
             temp = int(episode_step < self.args['tempThreshold'])
-            action_probs = self.mcts.get_action_prob(canonical_board, temp=temp)
-            train_examples.append((canonical_board, current_player, action_probs, None))
+            add_exploration_noise = temp > 0
 
-            action = np.random.choice(len(action_probs), p=action_probs)
+            self.mcts = MCTS(self.game, self.model, self.args)
+            root = self.mcts.run(self.model, canonical_board, to_play=1, add_exploration_noise=add_exploration_noise)
 
+            p_actions = []
+            for k, v in root.children.items():
+                p_actions.append(v.prior)
+            train_examples.append((canonical_board, current_player, p_actions, None))
+
+            action = root.select_action(temp)
             board, current_player = self.game.get_next_state(board, current_player, action)
-
             r = self.game.get_game_ended(board, current_player)
 
-            #TODO: Can we clean this up?
             if r != 0:
                 # [Board, currentPlayer, actionProbabilities, None]
-                return [(x[0], x[2], r * ((-1) ** (x[1] != current_player))) for x in train_examples]
+                test = [(x[0], x[2], r * ((-1) ** (x[1] != current_player))) for x in train_examples]
+                return test
 
     def learn(self):
 
@@ -52,7 +57,6 @@ class Trainer:
             train_examples = []
 
             for eps in range(self.args['numEps']):
-                self.mcts = MCTS(self.game, self.model, self.args)
                 iteration_train_examples = self.exceute_episode()
                 train_examples.extend(iteration_train_examples)
 

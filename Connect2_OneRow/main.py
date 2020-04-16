@@ -129,6 +129,7 @@ def display_graph(trainer, model):
 
 args = {
     'batch_size': 64,
+    'num_simulations': 10,
     'numIters': 300,
     'numEps': 100,              # Number of full games (episodes) to run during each iteration
     'tempThreshold': 15,        # Number of iterations before we switch temp from 1 to 0
@@ -145,4 +146,4 @@ model = Connect2Model(board_size, action_size, device)
 trainer = Trainer(game, model, args)
 trainer.learn()
 
-display_graph(trainer, model)
+#display_graph(trainer, model)
