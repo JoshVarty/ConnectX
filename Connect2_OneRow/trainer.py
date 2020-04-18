@@ -21,34 +21,40 @@ class Trainer:
     def exceute_episode(self):
 
         train_examples = []
-        board = self.game.get_init_board()
+        state = self.game.get_init_board()
         current_player = 1
 
         episode_step = 0
 
         while True:
             episode_step += 1
-            canonical_board = self.game.get_canonical_board(board, current_player)
+
+            canonical_board = self.game.get_canonical_board(state, current_player)
 
             temp = int(episode_step < self.args['tempThreshold'])
             add_exploration_noise = temp > 0
 
             self.mcts = MCTS(self.game, self.model, self.args)
-            root = self.mcts.run(self.model, canonical_board, to_play=1, add_exploration_noise=add_exploration_noise)
+            root = self.mcts.run(self.model, canonical_board, to_play=1, add_exploration_noise=False)
 
-            p_actions = []
+            action_probs = [0 for _ in range(self.game.get_action_size())]
             for k, v in root.children.items():
-                p_actions.append(v.prior)
-            train_examples.append((canonical_board, current_player, p_actions, None))
+                action_probs[k] = v.prior
+            train_examples.append((canonical_board, current_player, action_probs))
 
             action = root.select_action(temp)
-            board, current_player = self.game.get_next_state(board, current_player, action)
-            r = self.game.get_game_ended(board, current_player)
+            if action_probs[action] == 0:
+                x = 5;
+            state, current_player = self.game.get_next_state(state, current_player, action)
+            reward = self.game.get_game_ended(state, current_player)
 
-            if r != 0:
+            if reward is not None:
+                ret = []
                 # [Board, currentPlayer, actionProbabilities, None]
-                test = [(x[0], x[2], r * ((-1) ** (x[1] != current_player))) for x in train_examples]
-                return test
+                for hist_state, hist_current_player, hist_action_probs in train_examples:
+                    t = (hist_state, hist_action_probs, reward * ((-1) ** (hist_current_player != current_player)))
+                    ret.append(t)
+                return ret
 
     def learn(self):
 
@@ -72,7 +78,7 @@ class Trainer:
 
     def train(self, examples):
 
-        optimizer = optim.Adam(self.model.parameters(), lr=2e-4)
+        optimizer = optim.SGD(self.model.parameters(), lr=1e-3)
         pi_losses = []
         v_losses = []
 

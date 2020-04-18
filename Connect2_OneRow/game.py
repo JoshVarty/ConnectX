@@ -44,7 +44,7 @@ class Connect2Game:
 
         return list(moves)
 
-    def get_valid_moves(self, board, player):
+    def get_valid_moves(self, board):
         # All moves are invalid by default
         valid_moves = [0] * self.get_action_size()
         b = np.copy(board)
@@ -74,17 +74,16 @@ class Connect2Game:
         return False
 
     def get_game_ended(self, board, player):
-        # return 0 if not ended, 1 if player 1 wins, -1 if player 1 lost
+        # return None if not ended, 1 if player 1 wins, -1 if player 1 lost
 
         if self.is_win(board, player):
             return 1
         if self.is_win(board, -player):
             return -1
         if self.has_legal_moves(board):
-            return 0
+            return None
 
-        # Draws have very little (but positive reward)
-        return 1e-4
+        return 0
 
     def get_canonical_board(self, board, player):
         return player * board
