@@ -6,6 +6,48 @@ from Connect2_OneRow.game import Connect2Game
 
 class MCTSTests(unittest.TestCase):
 
+    def test_mcts_finds_best_move_with_really_bad_priors(self):
+        class MockModel:
+            def predict(self, board):
+                # starting board is:
+                # [0, 0, 1, -1]
+                return np.array([0.3, 0.7, 0, 0]), 0.5
+
+        game = Connect2Game()
+        args = {'num_simulations': 5}
+
+        model = MockModel()
+        mcts = MCTS(game, model, args)
+        canonical_board = [0, 0, 1, -1]
+        print("starting")
+        root = mcts.run(model, canonical_board, to_play=1, add_exploration_noise=False)
+
+        # the best move is to play at index 1
+        self.assertGreater(root.children[1].visit_count, root.children[2].visit_count)
+        self.assertGreater(root.children[1].visit_count, root.children[3].visit_count)
+
+
+    def test_mcts_finds_best_move_with_really_really_bad_priors(self):
+        class MockModel:
+            def predict(self, board):
+                # starting board is:
+                # [-1, 0, 0, 0]
+                return np.array([0, 0.051, 0.049, 0.9]), 0.5
+
+        game = Connect2Game()
+        args = {'num_simulations': 100}
+
+        model = MockModel()
+        mcts = MCTS(game, model, args)
+        canonical_board = [-1, 0, 0, 0]
+        root = mcts.run(model, canonical_board, to_play=1, add_exploration_noise=False)
+
+        # the best move is to play at index 1
+        self.assertGreater(root.children[1].visit_count, root.children[2].visit_count)
+        self.assertGreater(root.children[1].visit_count, root.children[3].visit_count)
+
+
+
     def test_mcts_finds_best_move_with_equal_priors(self):
 
         class MockModel:

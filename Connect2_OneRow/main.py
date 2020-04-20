@@ -129,12 +129,12 @@ def display_graph(trainer, model):
 
 args = {
     'batch_size': 64,
-    'num_simulations': 25,
+    'num_simulations': 50,
     'numIters': 500,
-    'numEps': 500,              # Number of full games (episodes) to run during each iteration
+    'numEps': 100,              # Number of full games (episodes) to run during each iteration
     'tempThreshold': 15,        # Number of iterations before we switch temp from 1 to 0
     'numItersForTrainExamplesHistory': 20,
-    'epochs': 5,               # Number of epochs of training per iteration
+    'epochs': 2,               # Number of epochs of training per iteration
 }
 
 game = Connect2Game()

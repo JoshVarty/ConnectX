@@ -68,6 +68,9 @@ class Trainer:
 
                 self.all.extend(iteration_train_examples)
 
+            x = np.array(train_examples)
+            if np.count_nonzero(x[:, 2]) < 0.1 * len(x):
+                test = 6;
 
             shuffle(train_examples)
 
@@ -78,7 +81,7 @@ class Trainer:
 
     def train(self, examples):
 
-        optimizer = optim.SGD(self.model.parameters(), lr=1e-3)
+        optimizer = optim.Adam(self.model.parameters(), lr=5e-4)
         pi_losses = []
         v_losses = []
 
@@ -118,7 +121,7 @@ class Trainer:
             print("Policy Loss", np.mean(pi_losses))
             print("Value Loss", np.mean(v_losses))
             print("Examples:")
-            print(out_pi[0])
+            print(out_pi[0].detach())
             print(target_pis[0])
 
 

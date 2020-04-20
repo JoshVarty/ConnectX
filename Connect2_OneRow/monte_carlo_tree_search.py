@@ -110,7 +110,7 @@ class MCTS:
         # See: Self-Play under Methods
         action_probs, value = model.predict(state)
         if add_exploration_noise:
-            action_probs = self.add_exploration_noise(action_probs, dirichlet_alpha=0.3, exploration_fraction=0.25)
+            action_probs = self.add_exploration_noise(action_probs, dirichlet_alpha=0.5, exploration_fraction=0.25)
 
         valid_moves = self.game.get_valid_moves(state)
         action_probs = action_probs * valid_moves  # mask invalid moves
@@ -128,14 +128,15 @@ class MCTS:
                 oldNode = node
                 action, node = node.select_child()
 
-                if oldNode.children[action].prior == 0:
-                    action, node = oldNode.select_child()
                 search_path.append(node)
 
             parent = search_path[-2]
             state = parent.state
             # Now we're at a leaf node and we would like to expand
-            next_state, next_player = self.game.get_next_state(state, parent.to_play, action)
+            # Players always play from their own perspective
+            next_state, next_player = self.game.get_next_state(state, player=1, action=action)
+            # Get the board from the perspective of the other player
+            next_state = self.game.get_canonical_board(next_state, next_player)
 
             value = self.game.get_game_ended(next_state, next_player)
             if value is None:
@@ -157,8 +158,12 @@ class MCTS:
         to the root.
         """
         for node in reversed(search_path):
-            node.value_sum += -value if node.to_play == to_play else value
+            x = value if node.to_play == to_play else -value
+            print(node.to_play, to_play, x)
+            node.value_sum += value if node.to_play == to_play else -value
             node.visit_count += 1
+
+        print()
 
 
 
