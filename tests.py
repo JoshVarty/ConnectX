@@ -1,6 +1,6 @@
 import numpy as np
 import unittest
-from Connect2_OneRow.monte_carlo_tree_search import Node, MCTS, ucb_score
+from monte_carlo_tree_search import Node, MCTS, ucb_score
 from Connect2_OneRow.game import Connect2Game
 
 

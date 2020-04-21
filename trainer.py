@@ -5,7 +5,7 @@ from random import shuffle
 import torch
 import torch.optim as optim
 
-from Connect2_OneRow.monte_carlo_tree_search import MCTS
+from monte_carlo_tree_search import MCTS
 
 class Trainer:
 
@@ -48,7 +48,7 @@ class Trainer:
                 ret = []
                 for hist_state, hist_current_player, hist_action_probs in train_examples:
                     # [Board, currentPlayer, actionProbabilities, Reward]
-                    ret.append(hist_state, hist_action_probs, reward * ((-1) ** (hist_current_player != current_player)))
+                    ret.append((hist_state, hist_action_probs, reward * ((-1) ** (hist_current_player != current_player))))
 
                 return ret
 
@@ -63,7 +63,7 @@ class Trainer:
 
             shuffle(train_examples)
             self.train(train_examples)
-            self.save_checkpoint(folder=".", filename="latest.pth")
+            self.save_checkpoint(folder=".", filename="Connect2_OneRow/latest.pth")
 
     def train(self, examples):
         optimizer = optim.Adam(self.model.parameters(), lr=5e-4)

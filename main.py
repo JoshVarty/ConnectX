@@ -2,7 +2,7 @@ import torch
 
 from Connect2_OneRow.game import Connect2Game
 from Connect2_OneRow.model import Connect2Model
-from Connect2_OneRow.trainer import Trainer
+from trainer import Trainer
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
