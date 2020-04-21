@@ -35,11 +35,14 @@ class Trainer:
             add_exploration_noise = temp > 0
 
             self.mcts = MCTS(self.game, self.model, self.args)
-            root = self.mcts.run(self.model, canonical_board, to_play=1, add_exploration_noise=False)
+            root = self.mcts.run(self.model, canonical_board, to_play=1, add_exploration_noise=True)
 
             action_probs = [0 for _ in range(self.game.get_action_size())]
             for k, v in root.children.items():
-                action_probs[k] = v.prior
+                action_probs[k] = v.visit_count
+
+            action_probs = action_probs / np.sum(action_probs)
+            #TODO: Not action probs, we use counts
             train_examples.append((canonical_board, current_player, action_probs))
 
             action = root.select_action(temp)

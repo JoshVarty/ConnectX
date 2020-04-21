@@ -6,7 +6,7 @@ import numpy as np
 def ucb_score(parent, child):
     prior_score = child.prior * math.sqrt(parent.visit_count) / (child.visit_count + 1)
     if child.visit_count > 0:
-        value_score = child.value()
+        value_score = -child.value()
     else:
         value_score = 0
 
@@ -31,7 +31,6 @@ class Node:
             return 0
 
         return self.value_sum / self.visit_count
-
 
 
     def select_action(self, temperature):
@@ -78,7 +77,7 @@ class Node:
 
     def __repr__(self):
         priot_str = "{0:.2f}".format(self.prior)
-        return "{} Prior: {} Count: {}".format(self.state.__str__(), priot_str, self.visit_count)
+        return "{} Prior: {} Count: {} Value: {}".format(self.state.__str__(), priot_str, self.visit_count, self.value())
 
 
 
@@ -110,7 +109,7 @@ class MCTS:
         # See: Self-Play under Methods
         action_probs, value = model.predict(state)
         if add_exploration_noise:
-            action_probs = self.add_exploration_noise(action_probs, dirichlet_alpha=0.5, exploration_fraction=0.25)
+            action_probs = self.add_exploration_noise(action_probs, dirichlet_alpha=0.3, exploration_fraction=0.25)
 
         valid_moves = self.game.get_valid_moves(state)
         action_probs = action_probs * valid_moves  # mask invalid moves
@@ -125,29 +124,28 @@ class MCTS:
 
             # SELECT
             while node.expanded():
-                oldNode = node
                 action, node = node.select_child()
-
                 search_path.append(node)
 
             parent = search_path[-2]
             state = parent.state
             # Now we're at a leaf node and we would like to expand
             # Players always play from their own perspective
-            next_state, next_player = self.game.get_next_state(state, player=1, action=action)
+            next_state, _ = self.game.get_next_state(state, player=1, action=action)
             # Get the board from the perspective of the other player
-            next_state = self.game.get_canonical_board(next_state, next_player)
+            next_state = self.game.get_canonical_board(next_state, player=-1)
 
-            value = self.game.get_game_ended(next_state, next_player)
+            # The value of the new state from the perspective of the other player
+            value = self.game.get_game_ended(next_state, player=1)
             if value is None:
                 # EXPAND
                 action_probs, value = model.predict(next_state)
                 valid_moves = self.game.get_valid_moves(next_state)
                 action_probs = action_probs * valid_moves  # mask invalid moves
                 action_probs /= np.sum(action_probs)
-                node.expand(next_state, next_player, action_probs)
+                node.expand(next_state, parent.to_play * -1, action_probs)
 
-            self.backpropagate(search_path, value, next_player)
+            self.backpropagate(search_path, value, parent.to_play * -1)
 
         return root
 
@@ -159,96 +157,10 @@ class MCTS:
         """
         for node in reversed(search_path):
             x = value if node.to_play == to_play else -value
-            print(node.to_play, to_play, x)
             node.value_sum += value if node.to_play == to_play else -value
             node.visit_count += 1
 
-        print()
 
-
-
-    def get_action_prob(self, canonicalBoard, numberOfMCTSSimulations=15, temp=1):
-
-        for i in range(numberOfMCTSSimulations):
-            self.search(canonicalBoard)
-
-        s = self.game.string_representation(canonicalBoard)
-        counts = [self.Nsa[(s, a)] if (s, a) in self.Nsa else 0 for a in range(self.game.get_action_size())]
-
-        if temp == 0:
-            best_a = np.argmax(counts)
-            probs = [0] * len(counts)
-            probs[best_a] = 1
-            return probs
-
-        counts = [x ** (1. / temp) for x in counts]
-        counts_sum = float(sum(counts))
-        probs = [x / counts_sum for x in counts]
-
-        # From the paper: We want to explore many nodes from the root node so we add some
-        # noise to the probabilities we've collected
-        if np.count_nonzero(canonicalBoard) == 0:
-            probs = np.array(probs)
-            epsilon = 0.25
-            alpha = np.ones_like(probs) * 0.03
-            probs = (1 - epsilon) * np.array(probs) + epsilon * np.random.dirichlet(alpha=alpha)
-
-        return list(probs)
-
-    def search(self, canonicalBoard):
-        s = self.game.string_representation(canonicalBoard)
-
-        if s not in self.Es:
-            self.Es[s] = self.game.get_game_ended(canonicalBoard, 1)
-
-        if self.Es[s] != 0:
-            # terminal node
-            return -self.Es[s]
-
-        if s not in self.Ps:
-            # leaf node, EXPAND
-            self.Ps[s], v = self.model.predict(canonicalBoard)
-            valid_moves = self.game.get_valid_moves(canonicalBoard, 1)
-            self.Ps[s] = self.Ps[s] * valid_moves   # mask invalid moves
-            self.Ps[s] /= np.sum(self.Ps[s])        # renormalize predictions
-
-            self.Vs[s] = valid_moves
-            self.Ns[s] = 0
-            return -v
-
-        valid_moves = self.Vs[s]
-        current_best = -float('inf')
-        best_action = -1
-
-        # pick the action with the highest upper confidence bound?
-        for a in range(self.game.get_action_size()):
-            if valid_moves[a]:
-                if (s, a) in self.Qsa:
-                    u = self.Qsa[(s, a)] + self.Ps[s][a] * math.sqrt(self.Ns[s]) / (1 + self.Nsa[(s, a)])
-                else:
-                    # We've never taken this action in this state before
-                    u = self.Ps[s][a] * math.sqrt(self.Ns[s] + self.EPS)
-
-                if u > current_best:
-                    current_best = u
-                    best_action = a
-
-        a = best_action
-        next_s, next_player = self.game.get_next_state(canonicalBoard, 1, a)
-        next_s = self.game.get_canonical_board(next_s, next_player)
-
-        v = self.search(next_s)
-
-        # Backup
-        if (s, a) in self.Qsa:
-            self.Qsa[(s, a)] = (self.Nsa[(s, a)] * self.Qsa[(s, a)] + v) / (self.Nsa[(s, a)] + 1)
-            self.Nsa[(s, a)] += 1
-        else:
-            self.Qsa[(s, a)] = v
-            self.Nsa[(s, a)] = 1
-
-        self.Ns[s] += 1
-        return -v
 
 
 
