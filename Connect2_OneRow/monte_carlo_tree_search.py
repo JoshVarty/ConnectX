@@ -3,15 +3,26 @@ import math
 import numpy as np
 
 
+def add_dirichlet_noise(action_probs, dirichlet_alpha, exploration_fraction):
+    """
+    At the start of each search, we add dirichlet noise to the prior of the root to
+    encourage the search to explore new actions.
+    """
+    noise = np.random.dirichlet([dirichlet_alpha] * len(action_probs))
+    frac = exploration_fraction
+    action_probs = action_probs * (1 - frac) + noise * frac
+    return action_probs
+
+
 def ucb_score(parent, child):
     prior_score = child.prior * math.sqrt(parent.visit_count) / (child.visit_count + 1)
     if child.visit_count > 0:
+        # The value of the child is from the perspective of the opposing player
         value_score = -child.value()
     else:
         value_score = 0
 
-    x = value_score + prior_score
-    return x
+    return value_score + prior_score
 
 
 class Node:
@@ -29,14 +40,10 @@ class Node:
     def value(self):
         if self.visit_count == 0:
             return 0
-
         return self.value_sum / self.visit_count
 
-
     def select_action(self, temperature):
-        visit_counts = np.array(
-            [child.visit_count for child in self.children.values()]
-        )
+        visit_counts = np.array([child.visit_count for child in self.children.values()])
         actions = [action for action in self.children.keys()]
         if temperature == 0:
             action = actions[np.argmax(visit_counts)]
@@ -67,7 +74,6 @@ class Node:
 
         return best_action, best_child
 
-
     def expand(self, state, to_play, action_probs):
         self.to_play = to_play
         self.state = state
@@ -76,9 +82,8 @@ class Node:
                 self.children[a] = Node(prob, self.to_play*-1)
 
     def __repr__(self):
-        priot_str = "{0:.2f}".format(self.prior)
-        return "{} Prior: {} Count: {} Value: {}".format(self.state.__str__(), priot_str, self.visit_count, self.value())
-
+        prior = "{0:.2f}".format(self.prior)
+        return "{} Prior: {} Count: {} Value: {}".format(self.state.__str__(), prior, self.visit_count, self.value())
 
 
 class MCTS:
@@ -87,17 +92,6 @@ class MCTS:
         self.game = game
         self.model = model
         self.args = args
-
-    def add_exploration_noise(self, action_probs, dirichlet_alpha, exploration_fraction):
-        """
-        At the start of each search, we add dirichlet noise to the prior of the root to
-        encourage the search to explore new actions.
-        """
-        noise = np.random.dirichlet([dirichlet_alpha] * len(action_probs))
-        frac = exploration_fraction
-        action_probs = action_probs * (1 - frac) + noise * frac
-        return action_probs
-
 
     def run(self, model, state, to_play, add_exploration_noise):
 
@@ -109,7 +103,7 @@ class MCTS:
         # See: Self-Play under Methods
         action_probs, value = model.predict(state)
         if add_exploration_noise:
-            action_probs = self.add_exploration_noise(action_probs, dirichlet_alpha=0.3, exploration_fraction=0.25)
+            action_probs = add_dirichlet_noise(action_probs, dirichlet_alpha=0.3, exploration_fraction=0.25)
 
         valid_moves = self.game.get_valid_moves(state)
         action_probs = action_probs * valid_moves  # mask invalid moves
@@ -138,6 +132,7 @@ class MCTS:
             # The value of the new state from the perspective of the other player
             value = self.game.get_game_ended(next_state, player=1)
             if value is None:
+                # If the game has not ended:
                 # EXPAND
                 action_probs, value = model.predict(next_state)
                 valid_moves = self.game.get_valid_moves(next_state)
@@ -149,25 +144,11 @@ class MCTS:
 
         return root
 
-
     def backpropagate(self, search_path, value, to_play):
         """
         At the end of a simulation, we propagate the evaluation all the way up the tree
         to the root.
         """
         for node in reversed(search_path):
-            x = value if node.to_play == to_play else -value
             node.value_sum += value if node.to_play == to_play else -value
             node.visit_count += 1
-
-
-
-
-
-
-
-
-
-
-
-

@@ -5,7 +5,6 @@ from random import shuffle
 import torch
 import torch.optim as optim
 
-from collections import deque
 from Connect2_OneRow.monte_carlo_tree_search import MCTS
 
 class Trainer:
@@ -16,15 +15,12 @@ class Trainer:
         self.args = args
         self.mcts = MCTS(self.game, self.model, self.args)
 
-        self.all = []
-
     def exceute_episode(self):
 
         train_examples = []
-        state = self.game.get_init_board()
         current_player = 1
-
         episode_step = 0
+        state = self.game.get_init_board()
 
         while True:
             episode_step += 1
@@ -35,32 +31,28 @@ class Trainer:
             add_exploration_noise = temp > 0
 
             self.mcts = MCTS(self.game, self.model, self.args)
-            root = self.mcts.run(self.model, canonical_board, to_play=1, add_exploration_noise=True)
+            root = self.mcts.run(self.model, canonical_board, to_play=1, add_exploration_noise=add_exploration_noise)
 
             action_probs = [0 for _ in range(self.game.get_action_size())]
             for k, v in root.children.items():
                 action_probs[k] = v.visit_count
 
             action_probs = action_probs / np.sum(action_probs)
-            #TODO: Not action probs, we use counts
             train_examples.append((canonical_board, current_player, action_probs))
 
             action = root.select_action(temp)
-            if action_probs[action] == 0:
-                x = 5;
             state, current_player = self.game.get_next_state(state, current_player, action)
             reward = self.game.get_game_ended(state, current_player)
 
             if reward is not None:
                 ret = []
-                # [Board, currentPlayer, actionProbabilities, None]
                 for hist_state, hist_current_player, hist_action_probs in train_examples:
-                    t = (hist_state, hist_action_probs, reward * ((-1) ** (hist_current_player != current_player)))
-                    ret.append(t)
+                    # [Board, currentPlayer, actionProbabilities, Reward]
+                    ret.append(hist_state, hist_action_probs, reward * ((-1) ** (hist_current_player != current_player)))
+
                 return ret
 
     def learn(self):
-
         for i in range(1, self.args['numIters'] + 1):
 
             train_examples = []
@@ -69,21 +61,11 @@ class Trainer:
                 iteration_train_examples = self.exceute_episode()
                 train_examples.extend(iteration_train_examples)
 
-                self.all.extend(iteration_train_examples)
-
-            x = np.array(train_examples)
-            if np.count_nonzero(x[:, 2]) < 0.1 * len(x):
-                test = 6;
-
             shuffle(train_examples)
-
             self.train(train_examples)
-
             self.save_checkpoint(folder=".", filename="latest.pth")
 
-
     def train(self, examples):
-
         optimizer = optim.Adam(self.model.parameters(), lr=5e-4)
         pi_losses = []
         v_losses = []
@@ -127,21 +109,13 @@ class Trainer:
             print(out_pi[0].detach())
             print(target_pis[0])
 
-
     def loss_pi(self, targets, outputs):
-        # loss_fn = torch.nn.KLDivLoss()
-        # return loss_fn(torch.log(outputs), targets)
-        # Try cross entropy loss
         loss = -(targets * torch.log(outputs)).sum(dim=1)
         return loss.mean()
 
     def loss_v(self, targets, outputs):
-
-        x = torch.FloatTensor([0.01]).cuda()
         loss = torch.sum((targets-outputs.view(-1))**2)/targets.size()[0]
-        loss = torch.max(x, loss)
         return loss
-
 
     def save_checkpoint(self, folder, filename):
         if not os.path.exists(folder):
@@ -151,6 +125,3 @@ class Trainer:
         torch.save({
             'state_dict': self.model.state_dict(),
         }, filepath)
-
-
-

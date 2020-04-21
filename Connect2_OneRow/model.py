@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class Connect2Model(nn.Module):
 
     def __init__(self, board_size, action_size, device):
@@ -23,7 +24,6 @@ class Connect2Model(nn.Module):
 
         self.to(device)
 
-
     def forward(self, x):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
@@ -32,7 +32,6 @@ class Connect2Model(nn.Module):
         value_logit = self.value_head(x)
 
         return F.softmax(action_logits, dim=1), torch.tanh(value_logit)
-
 
     def predict(self, board):
         board = torch.FloatTensor(board.astype(np.float32)).to(self.device)
